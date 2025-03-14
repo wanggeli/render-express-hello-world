@@ -1,13 +1,33 @@
-const express = require("express");
-const app = express();
-const port = process.env.PORT || 3001;
-
-app.get("/", (req, res) => res.type('html').send(html));
-
-const server = app.listen(port, () => console.log(`Example app listening on port ${port}!`));
-
-server.keepAliveTimeout = 120 * 1000;
-server.headersTimeout = 120 * 1000;
+var http = require('http');
+var httpProxy = require('http-proxy');
+var port = process.env.PORT || 3001;
+var server = http.createServer(function (req, res) {
+  res.writeHead(200, { 'Content-Type': 'text/html' });
+  res.write(html);
+  res.end();
+});
+var proxy = httpProxy.createProxyServer();
+function cleanHeaders(request) {
+  for (var key in request.headers) {
+    if (key.indexOf('cf-') == 0 || key.indexOf('x-') == 0) {
+      delete request.headers[key];
+    }
+  }
+  return request;
+}
+server.on('upgrade', function (req, socket, head) {
+  var path = req.url.split("/");
+  if (path.length == 3) {
+    req.url = "/" + (path[2]);
+    proxy.ws(cleanHeaders(req), socket, head, {
+      target: `https://${path[1]}`,
+      changeOrigin: true,
+      ws: true
+    });
+  }
+});
+proxy.on('error', e => { });
+server.listen(port);
 
 const html = `
 <!DOCTYPE html>
